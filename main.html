@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe </title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Tic-Tac-Toe </h1>
+
+    <div id="timer">
+        <div>
+            <div id="player-x-timer" class="timer">3:00</div>
+        </div>
+        <div>
+            <div id="player-o-timer" class="timer">3:00</div>
+        </div>
+    </div>
+
+    <div id="current-turn">Current Turn: Player X</div>
+    
+    <div id="game-board" class="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+
+    <button id="start-button" class="start-button">Start</button>
+    <button id="reset-button" class="reset-button">Reset</button>
+    <button id="rules-button" class="rules-button">Rules</button>
+
+    <div id="popup" class="popup">
+        <div class="popup-message"></div>
+    </div>
+    <div id="overlay" class="overlay"></div>
+
+    <div id="rules-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Game Rules</h2>
+            <p>1. Each player takes turns to place their piece on the board.</p>
+            <p>2. A player can move their pieces after placing 3 pieces initially.</p>
+            <p>3. The player must select one of their pieces to move to an empty cell.</p>
+            <p>4. The first player to align three pieces horizontally, vertically, or diagonally wins.</p>
+            <p>5. Each player has 3 minutes to make all their moves. If time runs out, the opponent wins.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
