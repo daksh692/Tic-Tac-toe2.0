@@ -1,2 +1,3 @@
 # Tic-Tac-toe2.0
-This is a tic-tac-toe game but with new fun method where each player only has 3 pices once use the player needs to take one of the old one and put it into an empty box
+This is a tic-tac-toe game but with new fun method where each player only has 3 pices once use the player needs to take one of the old one and put it into an empty box.
+To make thing more intresting both player have 3 mins time limit one ended the other player automatcly wins.
