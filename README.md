@@ -53,3 +53,70 @@ A fast, modern take on tic-tac-toe. Each player **places 3 pieces** and then **m
 
 ## 📦 Project Structure
 
+```
+.
+├─ main.html      # App markup + modals
+├─ styles.css     # Theme (dark/light), board, animations
+└─ script.js      # Game state, timers, rules, confetti
+```
+
+No bundler. Just open `main.html` in a browser.
+
+---
+
+## 🚀 Run Locally
+
+- **Option 1 (double-click)**: open `main.html` directly.  
+- **Option 2 (local server, recommended)**:
+  ```bash
+  # Python 3
+  python -m http.server 8080
+  # then visit http://localhost:8080/main.html
+  ```
+
+### Deploy to GitHub Pages
+1. Push these three files to your repo root (`main.html`, `styles.css`, `script.js`).  
+2. In GitHub: **Settings → Pages → Source: `main` branch** (root).  
+3. App URL: `https://<user>.github.io/<repo>/main.html`.
+
+---
+
+## 🧠 Game Logic Notes
+
+- After each placement, win is checked immediately.  
+- As soon as a player reaches 3 pieces, the **last** one becomes the **default selection** every time their turn starts.  
+- Victory triggers **confetti** and a popup; the next round begins automatically after **10 seconds** (scores persist).
+
+---
+
+## ♿ Accessibility
+
+- Cells are real `<button>`s with `aria-label`s.  
+- High-contrast selection ring; optional win highlight.  
+- Vibration is opt-in.
+
+---
+
+## 🛠️ Customize
+
+- **Default timer**: change `3:00` (Settings) or tweak parsing in `script.js`.  
+- **Auto-next timeout**: edit `autoNextTimeout = setTimeout(..., 10000)`.  
+- **Confetti density/colors**: `makeConfettiParticles()` in `script.js`.  
+- **Theme**: override CSS variables in `:root` and `:root[data-theme="light"]`.
+
+---
+
+## 🗺️ Roadmap
+
+- Undo last move (one-ply)  
+- Hotkeys (R: reset round, N: next round)  
+- Adjacent-only default + rule presets  
+- Minimal AI (heuristics)  
+- Online play (WebSocket)
+
+---
+
+## License
+
+MIT — do what you want, no warranty.
+s
