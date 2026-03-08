@@ -1,17 +1,16 @@
-// Tic-Tac-Toe+ v2 (fixed modal interactions)
-// - Auto-select last piece in movement phase
-// - Confetti celebration + auto-next-round after 10s
-// - Light/Dark mode
+// Tic-Tac-Toe+ v4
+// Added CSS class mapping for Neon glows
 
 const board = document.getElementById("game-board");
 const cells = Array.from(board.getElementsByClassName("cell"));
-const startButton = document.getElementById("start-button");
-const pauseButton = document.getElementById("pause-button");
+const playPauseButton = document.getElementById("play-pause-button");
 const resetButton = document.getElementById("reset-button");
-const nextRoundButton = document.getElementById("next-round-button");
+const nextRoundBtn = document.getElementById("next-round-button");
 const swapStarterButton = document.getElementById("swap-starter-button");
 const playerXTimerElem = document.getElementById("player-x-timer");
 const playerOTimerElem = document.getElementById("player-o-timer");
+const cardX = document.getElementById("card-x");
+const cardO = document.getElementById("card-o");
 const popup = document.getElementById("popup");
 const popupMessage = document.querySelector(".popup-message");
 const overlay = document.getElementById("overlay");
@@ -46,6 +45,7 @@ const sfx = {
   illegal: () => tone(120, 0.12),
   start: () => arpeggio([330, 440, 550], 0.05),
 };
+
 function tone(freq, dur) {
   if (!enableSfxInput.checked) return;
   const o = audioCtx.createOscillator();
@@ -57,6 +57,7 @@ function tone(freq, dur) {
   o.start();
   o.stop(audioCtx.currentTime + dur);
 }
+
 function arpeggio(freqs, dur) {
   if (!enableSfxInput.checked) return;
   let t = audioCtx.currentTime;
@@ -85,6 +86,7 @@ let paused = false;
 let scores = { X: 0, O: 0 };
 let starter = "X";
 let autoNextTimeout = null;
+let countdownInterval = null;
 
 // ---- helpers ----
 function formatTime(s) {
@@ -92,41 +94,44 @@ function formatTime(s) {
     r = s % 60;
   return `${m}:${r < 10 ? "0" : ""}${r}`;
 }
-function setTurnText() {
+
+function updateTurnUI() {
   const name =
     currentPlayer === "X"
       ? nameXInput.value || "Player X"
       : nameOInput.value || "Player O";
-  currentTurnElem.textContent = `Current Turn: ${name}${
-    playerTurns[currentPlayer] < 3 ? "" : " — select & move"
-  }`;
+  currentTurnElem.textContent = `${name}'s Turn${playerTurns[currentPlayer] < 3 ? "" : " (Select & Move)"}`;
+
+  if (currentPlayer === "X") {
+    cardX.classList.add("active-turn");
+    cardO.classList.remove("active-turn");
+  } else {
+    cardO.classList.add("active-turn");
+    cardX.classList.remove("active-turn");
+  }
 }
+
 function startTimer(player) {
   stopTimer();
   currentPlayer = player;
-  setTurnText();
+  updateTurnUI();
   timerInterval = setInterval(() => {
     if (timers[player] > 0) {
       timers[player]--;
       document.getElementById(
-        `player-${player.toLowerCase()}-timer`
+        `player-${player.toLowerCase()}-timer`,
       ).textContent = formatTime(timers[player]);
     } else {
       clearInterval(timerInterval);
-      announce(
-        `${labelFor(player)} ran out of time! ${labelFor(
-          opponent(player)
-        )} wins the round.`
-      );
-      award(opponent(player));
-      celebrate(opponent(player));
-      endRound();
+      handleWin(opponent(player), `${labelFor(player)} ran out of time!`);
     }
   }, 1000);
 }
+
 function stopTimer() {
   clearInterval(timerInterval);
 }
+
 function opponent(p) {
   return p === "X" ? "O" : "X";
 }
@@ -135,6 +140,7 @@ function labelFor(p) {
     ? nameXInput.value || "Player X"
     : nameOInput.value || "Player O";
 }
+
 function neighborsOf(i) {
   const r = Math.floor(i / 3),
     c = i % 3,
@@ -148,13 +154,7 @@ function neighborsOf(i) {
     }
   return res;
 }
-function applyWinHighlight(pat) {
-  if (!highlightWinsInput.checked) return;
-  pat.forEach((i) => cells[i].classList.add("win"));
-}
-function clearWinHighlight() {
-  cells.forEach((c) => c.classList.remove("win"));
-}
+
 function checkWinFor(p) {
   const W = [
     [0, 1, 2],
@@ -166,89 +166,127 @@ function checkWinFor(p) {
     [0, 4, 8],
     [2, 4, 6],
   ];
-  return W.some(
-    (w) =>
-      w.every((i) => cells[i].textContent === p) && (applyWinHighlight(w), true)
-  );
+  return W.some((w) => {
+    if (w.every((i) => cells[i].textContent === p)) {
+      if (highlightWinsInput.checked)
+        w.forEach((i) => cells[i].classList.add("win"));
+      return true;
+    }
+    return false;
+  });
 }
-function announce(msg) {
-  popupMessage.innerHTML = msg;
-  popup.classList.add("active");
-  overlay.classList.add("active");
-  if (vibrateInput.checked && navigator.vibrate) navigator.vibrate(100);
-}
-function hidePopup() {
-  popup.classList.remove("active");
-  overlay.classList.remove("active");
-}
-function parseTimeToSeconds(str) {
-  const m = /^(\d+):(\d{2})$/.exec(str.trim());
-  if (!m) return 180;
-  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-}
-function award(p) {
-  scores[p] += 1;
+
+function handleWin(winner, customMsg = null) {
+  scores[winner]++;
   scoreXElem.textContent = scores.X;
   scoreOElem.textContent = scores.O;
+
+  sfx.win();
+  celebrate(); // Fireworks!
+
+  popupMessage.innerHTML = customMsg || `${labelFor(winner)} Wins!`;
+  popup.classList.add("active");
+  overlay.classList.add("active");
+  if (vibrateInput.checked && navigator.vibrate) navigator.vibrate(200);
+
+  endRound();
 }
+
 function endRound() {
   stopTimer();
   gameStarted = false;
-  if (autoNextTimeout) clearTimeout(autoNextTimeout);
-  autoNextTimeout = setTimeout(() => {
-    starter = opponent(starter);
-    beginRound();
-    hidePopup();
-  }, 10000);
+  playPauseButton.disabled = true;
+  playPauseButton.innerHTML = "⏸ Pause";
+
+  let countdown = 10;
+  document.querySelector(".popup-subtext").textContent =
+    `Next round starts in ${countdown}s...`;
+
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    countdown--;
+    document.querySelector(".popup-subtext").textContent =
+      `Next round starts in ${countdown}s...`;
+    if (countdown <= 0) {
+      clearInterval(countdownInterval);
+      triggerNextRound();
+    }
+  }, 1000);
 }
-function beginRound() {
+
+function triggerNextRound() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  popup.classList.remove("active");
+  overlay.classList.remove("active");
+  starter = randomStarterInput.checked
+    ? Math.random() < 0.5
+      ? "X"
+      : "O"
+    : opponent(starter);
   resetBoardState();
-  gameStarted = true;
-  paused = false;
-  startTimer(currentPlayer);
-  sfx.start();
 }
+
 function resetBoardState() {
   selectedCell = null;
   lastPieceIndex = { X: null, O: null };
   playerTurns = { X: 0, O: 0 };
   playerPieces = { X: [], O: [] };
+
   const secs = parseTimeToSeconds(timeInput.value);
   timers = { X: secs, O: secs };
   playerXTimerElem.textContent = formatTime(timers.X);
   playerOTimerElem.textContent = formatTime(timers.O);
+
   currentPlayer = starter;
-  clearWinHighlight();
   cells.forEach((c) => {
     c.textContent = "";
-    c.classList.remove("taken", "selected", "win");
+    c.className = "cell";
   });
-  setTurnText();
+
+  currentTurnElem.textContent = "Click any tile to start!";
+  cardX.classList.remove("active-turn");
+  cardO.classList.remove("active-turn");
+  playPauseButton.disabled = true;
+  gameStarted = false;
+  paused = false;
+
+  confettiParticles = [];
 }
+
 function selectCellElement(cell) {
   if (selectedCell) selectedCell.classList.remove("selected");
   selectedCell = cell;
   if (cell) cell.classList.add("selected");
 }
-function selectIndexIfOwned(p, idx) {
-  const cell = cells[idx];
-  if (cell && cell.classList.contains("taken") && cell.textContent === p)
-    selectCellElement(cell);
+
+function parseTimeToSeconds(str) {
+  const m = /^(\d+):(\d{2})$/.exec(str.trim());
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 180;
 }
 
 // ---- clicks ----
 function handleCellClick(e) {
   const cell = e.currentTarget;
   const idx = +cell.getAttribute("data-index");
-  if (!gameStarted || paused) {
+
+  // Auto-start on first click
+  if (!gameStarted) {
+    if (paused) return;
+    gameStarted = true;
+    playPauseButton.disabled = false;
+    sfx.start();
+    startTimer(currentPlayer);
+  }
+
+  if (paused) {
     sfx.illegal();
     return;
   }
 
+  // Deselect / Select own piece
   if (cell.classList.contains("taken") && cell.textContent === currentPlayer) {
     if (selectedCell === cell) {
-      cell.classList.remove("selected");
-      selectedCell = null;
+      selectCellElement(null);
       sfx.click();
     } else {
       selectCellElement(cell);
@@ -257,30 +295,33 @@ function handleCellClick(e) {
     return;
   }
 
+  // Move Phase
   if (!cell.classList.contains("taken") && selectedCell) {
     const fromIdx = +selectedCell.getAttribute("data-index");
     const canMove = playerPieces[currentPlayer].includes(fromIdx);
     const adjacencyOK =
       !adjacentMovesInput.checked || neighborsOf(fromIdx).includes(idx);
+
     if (canMove && adjacencyOK) {
+      // Clear old cell
       selectedCell.textContent = "";
-      selectedCell.classList.remove("taken", "selected");
+      selectedCell.classList.remove("taken", "selected", "x-piece", "o-piece");
+
+      // Update new cell
       cell.textContent = currentPlayer;
-      cell.classList.add("taken");
+      cell.classList.add(
+        "taken",
+        currentPlayer === "X" ? "x-piece" : "o-piece",
+      );
+
       playerPieces[currentPlayer] = playerPieces[currentPlayer].map((i) =>
-        i === fromIdx ? idx : i
+        i === fromIdx ? idx : i,
       );
       lastPieceIndex[currentPlayer] = idx;
       selectCellElement(null);
       sfx.move();
-      if (checkWinFor(currentPlayer)) {
-        award(currentPlayer);
-        announce(`${labelFor(currentPlayer)} wins the round!`);
-        sfx.win();
-        celebrate(currentPlayer);
-        endRound();
-        return;
-      }
+
+      if (checkWinFor(currentPlayer)) return handleWin(currentPlayer);
       switchPlayer();
       return;
     } else {
@@ -290,25 +331,17 @@ function handleCellClick(e) {
     }
   }
 
+  // Place Phase
   if (!cell.classList.contains("taken") && playerTurns[currentPlayer] < 3) {
     cell.textContent = currentPlayer;
-    cell.classList.add("taken");
+    cell.classList.add("taken", currentPlayer === "X" ? "x-piece" : "o-piece");
+
     playerPieces[currentPlayer].push(idx);
     playerTurns[currentPlayer]++;
     lastPieceIndex[currentPlayer] = idx;
     sfx.place();
-    if (playerTurns[currentPlayer] >= 3) {
-      currentTurnElem.textContent = `${labelFor(currentPlayer)}: move pieces`;
-      selectIndexIfOwned(currentPlayer, lastPieceIndex[currentPlayer]);
-    }
-    if (checkWinFor(currentPlayer)) {
-      award(currentPlayer);
-      announce(`${labelFor(currentPlayer)} wins the round!`);
-      sfx.win();
-      celebrate(currentPlayer);
-      endRound();
-      return;
-    }
+
+    if (checkWinFor(currentPlayer)) return handleWin(currentPlayer);
     switchPlayer();
     return;
   }
@@ -322,65 +355,56 @@ function bounce(el) {
   void el.offsetWidth;
   el.classList.add("shake");
 }
+
 function switchPlayer() {
-  stopTimer();
   currentPlayer = opponent(currentPlayer);
-  setTurnText();
-  if (playerTurns[currentPlayer] >= 3)
-    selectIndexIfOwned(currentPlayer, lastPieceIndex[currentPlayer]);
-  else selectCellElement(null);
-  if (gameStarted && !paused) startTimer(currentPlayer);
+  updateTurnUI();
+  if (playerTurns[currentPlayer] >= 3) {
+    const lastCell = cells[lastPieceIndex[currentPlayer]];
+    selectCellElement(lastCell);
+  } else {
+    selectCellElement(null);
+  }
+  startTimer(currentPlayer);
 }
 
-// ---- header buttons ----
-startButton.addEventListener("click", () => {
-  if (gameStarted) return;
-  starter = randomStarterInput.checked
-    ? Math.random() < 0.5
-      ? "X"
-      : "O"
-    : starter;
-  currentPlayer = starter;
-  beginRound();
-});
-pauseButton.addEventListener("click", () => {
+// ---- header controls ----
+playPauseButton.addEventListener("click", () => {
   if (!gameStarted) return;
   paused = !paused;
-  if (paused) stopTimer();
-  else startTimer(currentPlayer);
-  pauseButton.classList.toggle("active", paused);
-  pauseButton.textContent = paused ? "Resume" : "Pause";
+  if (paused) {
+    stopTimer();
+    playPauseButton.innerHTML = "▶️ Play";
+    currentTurnElem.textContent = "Game Paused";
+  } else {
+    startTimer(currentPlayer);
+    playPauseButton.innerHTML = "⏸ Pause";
+  }
 });
+
 resetButton.addEventListener("click", () => {
   stopTimer();
-  gameStarted = false;
-  paused = false;
-  starter = "X";
   scores = { X: 0, O: 0 };
   scoreXElem.textContent = "0";
   scoreOElem.textContent = "0";
-  timeInput.value = "3:00";
+  starter = "X";
   resetBoardState();
-  hidePopup();
-  pauseButton.textContent = "Pause";
 });
-nextRoundButton.addEventListener("click", () => {
-  if (gameStarted) return;
-  starter = randomStarterInput.checked
-    ? Math.random() < 0.5
-      ? "X"
-      : "O"
-    : opponent(starter);
-  beginRound();
-});
+
 swapStarterButton.addEventListener("click", () => {
   if (gameStarted) return;
   starter = opponent(starter);
   currentPlayer = starter;
-  setTurnText();
+  cardX.classList.remove("active-turn");
+  cardO.classList.remove("active-turn");
+  currentTurnElem.textContent = `${labelFor(starter)} will start. Click a tile!`;
 });
 
-// ---- modals (FIXED) ----
+nextRoundBtn.addEventListener("click", () => {
+  triggerNextRound();
+});
+
+// ---- Modals ----
 function openModal(m) {
   m.classList.add("active");
   m.setAttribute("aria-hidden", "false");
@@ -391,40 +415,36 @@ function closeAllModals() {
     m.classList.remove("active");
     m.setAttribute("aria-hidden", "true");
   });
-  overlay.classList.remove("active");
+  if (!popup.classList.contains("active")) overlay.classList.remove("active");
 }
-
 rulesButton.addEventListener("click", () => openModal(rulesModal));
 settingsButton.addEventListener("click", () => openModal(settingsModal));
 closeButtons.forEach((btn) => btn.addEventListener("click", closeAllModals));
-overlay.addEventListener("click", closeAllModals);
+overlay.addEventListener("click", () => {
+  if (!popup.classList.contains("active")) closeAllModals();
+});
 
-// ---- settings apply ----
 applySettingsBtn.addEventListener("click", () => {
   const seconds = parseTimeToSeconds(timeInput.value);
-  if (seconds <= 0 || isNaN(seconds)) {
-    announce("Invalid time format. Use mm:ss (e.g., 3:00).");
-    return;
-  }
   if (!gameStarted) {
     playerXTimerElem.textContent = formatTime(seconds);
     playerOTimerElem.textContent = formatTime(seconds);
+    timers = { X: seconds, O: seconds };
   }
   closeAllModals();
 });
 
-// ---- theme toggle ----
 modeToggle.addEventListener("change", (e) => {
   const dark = e.target.checked;
   document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   e.target.nextElementSibling.textContent = dark ? "Dark" : "Light";
 });
 
-// ---- confetti ----
+// ---- Fireworks Confetti ----
 let confettiParticles = [];
 function celebrate() {
   resizeCanvas();
-  confettiParticles = makeConfettiParticles();
+  confettiParticles = makeFireworksParticles();
   let t0 = null;
   function frame(ts) {
     if (!t0) t0 = ts;
@@ -432,21 +452,28 @@ function celebrate() {
     t0 = ts;
     drawConfetti(dt);
     if (confettiParticles.some((p) => p.life > 0)) requestAnimationFrame(frame);
+    else {
+      const ctx = confettiCanvas.getContext("2d");
+      ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
   }
   requestAnimationFrame(frame);
 }
-function makeConfettiParticles() {
+
+function makeFireworksParticles() {
   const W = confettiCanvas.width,
     H = confettiCanvas.height,
-    parts = [],
-    colors = ["#ffd54f", "#4dd0e1", "#ab47bc", "#ef5350", "#66bb6a", "#42a5f5"];
-  for (let i = 0; i < 160; i++) {
-    const side = Math.random() < 0.5 ? -1 : 1,
-      x = side < 0 ? -20 : W + 20,
-      y = H * 0.1 + Math.random() * H * 0.8,
-      vx = side < 0 ? 2 + Math.random() * 3 : -2 - Math.random() * 3,
-      vy = -1 + Math.random() * 2,
-      g = 0.06 + Math.random() * 0.04;
+    parts = [];
+  const colors = ["#ff2a6d", "#05d9e8", "#f59e0b", "#10b981", "#8b5cf6"];
+
+  for (let i = 0; i < 200; i++) {
+    const isLeft = i % 2 === 0;
+    const x = isLeft ? 0 : W;
+    const y = H;
+    const vx = (isLeft ? 1 : -1) * (Math.random() * 15 + 5);
+    const vy = -(Math.random() * 20 + 10);
+    const g = 0.15 + Math.random() * 0.1;
+
     parts.push({
       x,
       y,
@@ -456,18 +483,20 @@ function makeConfettiParticles() {
       w: 6 + Math.random() * 6,
       h: 8 + Math.random() * 10,
       r: Math.random() * Math.PI,
-      vr: -0.1 + Math.random() * 0.2,
-      color: colors[i % colors.length],
-      life: 4000 + Math.random() * 2000,
+      vr: -0.2 + Math.random() * 0.4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 3000 + Math.random() * 2000,
     });
   }
   return parts;
 }
+
 function resizeCanvas() {
   confettiCanvas.width = window.innerWidth;
   confettiCanvas.height = window.innerHeight;
 }
 window.addEventListener("resize", resizeCanvas);
+
 function drawConfetti(dt) {
   const ctx = confettiCanvas.getContext("2d");
   ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
@@ -489,9 +518,7 @@ function drawConfetti(dt) {
 
 // ---- init ----
 document.addEventListener("DOMContentLoaded", () => {
-  playerXTimerElem.textContent = formatTime(timers["X"]);
-  playerOTimerElem.textContent = formatTime(timers["O"]);
+  resetBoardState();
   cells.forEach((c) => c.addEventListener("click", handleCellClick));
-  setTurnText();
   resizeCanvas();
 });
