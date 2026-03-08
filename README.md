@@ -76,7 +76,7 @@ No bundler. Just open `main.html` in a browser.
 
 ### Deploy to GitHub Pages
 1. Push these three files to your repo root (`main.html`, `styles.css`, `script.js`).  
-2. In GitHub: **Settings → Pages → Source: `main` branch** (root).  
+2. In GitHub: **Settings → Pages → Source: `master` branch** (root).  
 3. App URL: `https://<user>.github.io/<repo>/main.html`.
 
 ---
